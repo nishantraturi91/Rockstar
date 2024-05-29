@@ -1,0 +1,60 @@
+---
+
+- name: Download Elasticsearch and plugins
+  become: yes
+  connection: local 
+  gather_facts: false
+  hosts: all
+  tasks:
+    - include_role:
+        name: elasticsearch-install
+        tasks_from: download.yml
+  vars:
+    ansible_remote_tmp: /tmp
+  tags:
+    - download  
+
+- name: Prepare System (Set LV, VG etc)                                                                                      
+  become: yes                                                                                                                                               
+  gather_facts: false                                                                                                                                       
+  hosts: all                                                                                                                                                
+  roles:                                                                                                                                                    
+    - elasticsearch-system                                                                                                                                
+  tags:
+    - system
+
+- name: Prepare Server Propagate and Install Elasticsearch and plugins
+  become: yes
+  #become_user: root
+  gather_facts: false
+  hosts: all
+  roles:
+    - elasticsearch-install
+  vars:
+    ansible_remote_tmp: /tmp
+  tags:
+    - install
+
+- name: Configure Elasticsearch and plugins
+  become: yes
+  gather_facts: true
+  hosts: all
+  roles:
+    - elasticsearch-configure
+  vars:
+    ansible_remote_tmp: /tmp
+  tags:
+    - configure
+
+- name: Update Elasticsearch and plugins and rolling restart
+  become: yes
+  become_user: root
+  gather_facts: false
+  hosts: all
+  serial: 1
+  roles:
+    - elasticsearch-rolling
+  tags: 
+    - rolling
+  vars:
+    ansible_remote_tmp: /tmp

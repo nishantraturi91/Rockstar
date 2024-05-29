@@ -1,0 +1,69 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: como-log-08
+  namespace: ingest
+spec:
+  maxHistory: 1
+  releaseName: como-log-08
+  targetNamespace: ingest
+  interval: 5m
+  chart:
+    spec:
+      chart: ./logstash-generic
+      sourceRef:
+        kind: GitRepository
+        name: como-charts
+      interval: 1m
+  install:
+    crds: Create
+    disableWait: true
+  upgrade:
+    crds: CreateReplace
+    disableWait: true
+  values:
+    replicas: 4
+    image: "harbor-ams.af-klm.com/como/logstash-generic-ingest"
+    imageTag: 7.16.3
+    resources:
+      requests:
+        cpu: "1000m"
+        memory: "1024Mi"
+      limits:
+        cpu: "2000m"
+        memory: "2048Mi"
+    pipeline:
+      workers: 10
+    kafka:
+      consumer_threads: 10
+    extraEnvs:
+      - name: KAFKA_GROUP_ID
+        value: P.COMO.DataShipping.001
+      - name: KAFKA_CLIENT_ID
+        value: COMO
+      - name: KAFKA_TOPICS_PATTERN
+        value: (P.log-APP.ORDER_API.001|P.log-APP.TASKAPI.001|P.log-APP.IOT_PLATFORM.001|P.log-APP.MYCAREER.001|P.log-APP.PRODUCTTEAM_CDT.001|P.log-APP.PASSENGER_LOCATION_REST.001|P.log-APP.PRODUCTTEAM_KITE.001|P.log-APP.BAGSTAGE.001)
+      - name: KAFKA_BOOTSTRAP_SERVERS
+        value: kl139eij.is.klmcorp.net:6668,kl139ekh.is.klmcorp.net:6668,kl139ejg.is.klmcorp.net:6668,kl139ele.is.klmcorp.net:6668
+      - name: ELASTICSEARCH_HOST
+        value: elastic-como-ams-prd.is.klmcorp.net
+      - name: ELASTICSEARCH_INDEX
+        value: log-08
+    extraFilter: |
+      if [@metadata][kafka][topic] == "P.log-APP.ORDER_API.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-checkout" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.TASKAPI.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-generic" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.IOT_PLATFORM.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-iot" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.MYCAREER.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-generic" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.PRODUCTTEAM_CDT.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-cdt" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.PASSENGER_LOCATION_REST.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-pls" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.PRODUCTTEAM_KITE.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-kite" } }
+      } else if [@metadata][kafka][topic] == "P.log-APP.BAGSTAGE.001" {
+        mutate { update => { "[@metadata][target_index]" => "log-bagstage" } }
+      }
